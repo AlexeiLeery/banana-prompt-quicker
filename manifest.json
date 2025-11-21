@@ -1,0 +1,25 @@
+{
+    "manifest_version": 3,
+    "name": "banana-prompt-quicker",
+    "version": "1.0",
+    "description": "Prompts quicker is ALL you 🍌 need",
+    "permissions": [
+        "storage"
+    ],
+    "host_permissions": [
+        "https://raw.githubusercontent.com/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://aistudio.google.com/*"
+            ],
+            "js": [
+                "prompts.js",
+                "modal.js",
+                "content.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ]
+}
