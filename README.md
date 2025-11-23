@@ -41,14 +41,6 @@ WIP，上架中
 
 3. 访问 [Google AI Studio](https://aistudio.google.com/) 或 [Gemini](https://gemini.google.com/) 开始使用
 
-
-## TODO
-
-[ ] 持续更新热门提示词。覆盖 Twitter，LinuxDO 等 AI 一手信息源
-
-[ ] 支持按场景筛选分类。自媒体、办公、学习、NSFW...
-
-
 ## 🤝 贡献提示词
 
 直接开 Issue，形式不限，可以直接分享你的创意，或者自媒体案例链接...
