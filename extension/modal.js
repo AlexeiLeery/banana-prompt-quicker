@@ -209,6 +209,7 @@ class BananaModal {
         if (!this._isInitialized) {
             // 首次显示：完整初始化
             this.loadPrompts()
+            this.loadAnnouncements()
             this.loadSortMode()
             this.updateCategoryDropdown()
             this.applyFilters(true)
@@ -717,12 +718,6 @@ class BananaModal {
             pagination.style.display = 'none'
             return
         }
-        // Layout configuration
-        if (mobile) {
-            pagination.style.cssText = `padding: 12px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; align-items: center; gap: 12px; background: ${colors.surface}; border-radius: 0;`
-        } else {
-            pagination.style.cssText = `padding: 16px 24px; border-top: 1px solid ${colors.border}; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; background: ${colors.surface}; border-radius: 0 0 20px 20px;`
-        }
 
         const createBtn = (text, disabled, onClick) => {
             const btn = document.createElement('button')
@@ -753,7 +748,7 @@ class BananaModal {
 
         const nextBtn = createBtn('下一页', this.currentPage === totalPages, () => this.changePage(1))
 
-        // Controls Wrapper
+        // Controls Wrapper (Pagination)
         const controlsWrapper = document.createElement('div')
         controlsWrapper.style.cssText = 'display: flex; align-items: center; gap: 16px;'
         controlsWrapper.appendChild(prevBtn)
@@ -762,7 +757,7 @@ class BananaModal {
 
         // Social Links Container
         const socialContainer = document.createElement('div')
-        socialContainer.style.cssText = `display: flex; align-items: center; gap: ${mobile ? '12px' : '16px'}; justify-content: ${mobile ? 'center' : 'flex-end'};`
+        socialContainer.style.cssText = `display: flex; align-items: center; gap: ${mobile ? '12px' : '16px'}; justify-content: ${mobile ? 'center' : 'flex-end'}; flex-shrink: 0;`
 
         // GitHub Link
         const githubLink = document.createElement('a')
@@ -806,10 +801,10 @@ class BananaModal {
         sponsorContainer.style.cssText = `display: flex; align-items: center; position: relative; ${mobile ? 'order: 3; margin-top: 4px;' : ''}`
 
         const sponsorText = document.createElement('span')
-        sponsorText.innerHTML = '☕ 承诺永久免费'
+        sponsorText.innerHTML = '☕ 永久免费'
         sponsorText.style.cssText = `color: ${colors.textSecondary}; font-size: ${mobile ? '12px' : '13px'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-weight: 500; opacity: 0.8;`
 
-        // QR Code Popup (Fixed Position)
+        // QR Code Popup ... (Same as before)
         const qrPopup = document.createElement('div')
         qrPopup.style.cssText = `
             position: fixed;
@@ -850,29 +845,17 @@ class BananaModal {
             document.body.appendChild(qrPopup)
             this.currentQrPopup = qrPopup
 
-            // Calculate position
             const rect = sponsorText.getBoundingClientRect()
             const popupRect = qrPopup.getBoundingClientRect()
-
-            // Center horizontally relative to text
             let left = rect.left + (rect.width / 2) - (popupRect.width / 2)
-
-            // Clamp to screen edges (16px padding)
             const minLeft = 16
             const maxLeft = window.innerWidth - popupRect.width - 16
-
             if (left < minLeft) left = minLeft
             if (left > maxLeft) left = maxLeft
-
-            // Position above text
             let top = rect.top - popupRect.height - 16
-
             qrPopup.style.left = `${left}px`
             qrPopup.style.top = `${top}px`
-
-            // Trigger reflow before opacity transition
             qrPopup.offsetHeight
-
             qrPopup.style.opacity = '1'
             sponsorText.style.color = colors.primary
             sponsorText.style.opacity = '1'
@@ -882,7 +865,6 @@ class BananaModal {
             sponsorText.style.color = colors.textSecondary
             sponsorText.style.opacity = '0.8'
             qrPopup.style.opacity = '0'
-
             hideTimeout = setTimeout(() => {
                 if (qrPopup.parentNode) {
                     qrPopup.parentNode.removeChild(qrPopup)
@@ -893,15 +875,36 @@ class BananaModal {
             }, 300)
         }
 
+        const announcementSection = this.createAnnouncementSection(colors, mobile)
+
+        // Layout configuration
         if (mobile) {
+            pagination.style.cssText = `padding: 12px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; align-items: center; gap: 12px; background: ${colors.surface}; border-radius: 0;`
+
             pagination.appendChild(controlsWrapper)
+            pagination.appendChild(announcementSection)
             pagination.appendChild(socialContainer)
             pagination.appendChild(sponsorContainer)
         } else {
-            // Desktop: Left (Sponsor) - Center (Pagination) - Right (Social)
-            pagination.appendChild(sponsorContainer)
-            pagination.appendChild(controlsWrapper)
-            pagination.appendChild(socialContainer)
+            pagination.style.cssText = `padding: 16px 24px; border-top: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; background: ${colors.surface}; border-radius: 0 0 20px 20px; position: relative;`
+
+            // Desktop: Controls Absolute Center
+            controlsWrapper.style.position = 'absolute'
+            controlsWrapper.style.left = '50%'
+            controlsWrapper.style.transform = 'translateX(-50%)'
+
+            const leftWrapper = document.createElement('div')
+            leftWrapper.style.cssText = 'display: flex; align-items: center; gap: 16px;'
+            leftWrapper.appendChild(sponsorContainer)
+            leftWrapper.appendChild(announcementSection)
+
+            const rightWrapper = document.createElement('div')
+            rightWrapper.style.cssText = 'display: flex; align-items: center; gap: 16px;'
+            rightWrapper.appendChild(socialContainer)
+
+            pagination.appendChild(leftWrapper)      // Left
+            pagination.appendChild(controlsWrapper)  // Center
+            pagination.appendChild(rightWrapper)     // Right
         }
     }
 
@@ -1474,5 +1477,141 @@ class BananaModal {
 
         await chrome.storage.local.set({ 'banana-custom-prompts': customPrompts })
         await this.loadPrompts()
+    }
+
+    async loadAnnouncements() {
+        try {
+            if (window.ConfigManager) {
+                const config = await window.ConfigManager.get()
+                if (config && config.announcements && config.announcements.length > 0) {
+                    this.announcements = config.announcements
+                    // Only start rotation if not already started
+                    if (!this.rotationTimeout) {
+                        this.currentAnnouncementIndex = 0
+                        this.startAnnouncementRotation()
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load announcements', e)
+        }
+    }
+
+    renderAnnouncement() {
+        return new Promise((resolve) => {
+            const container = document.getElementById('announcement-container')
+            if (!container || !this.announcements || this.announcements.length === 0) {
+                resolve(5000)
+                return
+            }
+
+            const item = this.announcements[this.currentAnnouncementIndex]
+
+            // Clear previous content
+            container.innerHTML = ''
+
+            // Icon
+            const icon = document.createElement('span')
+            icon.textContent = '📢'
+            icon.style.marginRight = '8px'
+
+            // Content Wrapper (for scrolling)
+            const contentWrapper = document.createElement('div')
+            // Adjusted mask to not hide the left side
+            contentWrapper.style.cssText = 'flex: 1; overflow: hidden; white-space: nowrap; position: relative; mask-image: linear-gradient(to right, black 0%, black 95%, transparent 100%); -webkit-mask-image: linear-gradient(to right, black 0%, black 95%, transparent 100%);'
+
+            // Text
+            const text = document.createElement('span')
+            text.textContent = item.content
+            text.style.cssText = 'display: inline-block; transition: transform 0.3s;'
+
+            if (item.link) {
+                text.style.cursor = 'pointer'
+                text.style.textDecoration = 'underline'
+                text.onclick = () => window.open(item.link, '_blank')
+            }
+
+            contentWrapper.appendChild(text)
+            container.appendChild(icon)
+            container.appendChild(contentWrapper)
+
+            // Check if scrolling is needed
+            requestAnimationFrame(() => {
+                if (text.offsetWidth > contentWrapper.offsetWidth) {
+                    // Marquee effect
+                    const scrollDistance = text.offsetWidth - contentWrapper.offsetWidth
+                    const speed = 30 // pixels per second
+                    const scrollDuration = scrollDistance / speed
+
+                    text.style.transition = `transform ${scrollDuration}s linear`
+
+                    // Reset position
+                    text.style.transform = 'translateX(0)'
+
+                    // Start scrolling after a small delay
+                    const startDelay = 1000
+                    const endDelay = 2000
+
+                    setTimeout(() => {
+                        text.style.transform = `translateX(-${scrollDistance}px)`
+                    }, startDelay)
+
+                    // Total duration = delay + scroll + end pause
+                    resolve((scrollDuration * 1000) + startDelay + endDelay)
+                } else {
+                    // No scroll needed, show for fixed time (e.g., 5s)
+                    resolve(5000)
+                }
+            })
+        })
+    }
+
+    startAnnouncementRotation() {
+        if (!this.announcements || this.announcements.length === 0) return
+
+        // Clear existing timeout if any
+        if (this.rotationTimeout) clearTimeout(this.rotationTimeout)
+
+        const showNext = () => {
+            this.renderAnnouncement().then(duration => {
+                this.rotationTimeout = setTimeout(() => {
+                    this.currentAnnouncementIndex = (this.currentAnnouncementIndex + 1) % this.announcements.length
+                    showNext()
+                }, duration)
+            })
+        }
+
+        showNext()
+    }
+
+    createAnnouncementSection(colors, mobile) {
+        const container = document.createElement('div')
+        container.id = 'announcement-container'
+        // Style: Fixed height, flex layout, text styling
+        // Fixed width on desktop to prevent pagination movement
+        container.style.cssText = `
+            display: flex;
+            align-items: center;
+            font-size: ${mobile ? '12px' : '13px'};
+            color: ${colors.textSecondary};
+            background: ${colors.surfaceHover};
+            padding: ${mobile ? '8px 12px' : '6px 12px'};
+            border-radius: 20px;
+            max-width: ${mobile ? '100%' : '215px'};
+            width: ${mobile ? '100%' : '215px'};
+            flex-shrink: 1;
+            height: 32px;
+            overflow: hidden;
+            box-sizing: border-box;
+            border: 1px solid ${colors.border};
+            flex: ${mobile ? 'none' : '0 1 auto'};
+        `
+
+        // Render immediately if data exists
+        if (this.announcements && this.announcements.length > 0) {
+            setTimeout(() => this.renderAnnouncement(), 0)
+        }
+
+        return container
     }
 }
