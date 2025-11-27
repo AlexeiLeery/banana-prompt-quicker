@@ -30,8 +30,12 @@ function getDefaultThemeColors(theme = 'light') {
 }
 
 async function getRemoteSelector(platform, type) {
-    const c = await window.PromptManager.get()
-    return c['selectors'][platform]?.[type]
+    // Selectors are in config.json, handled by ConfigManager
+    if (window.ConfigManager) {
+        const c = await window.ConfigManager.get()
+        return c?.selectors?.[platform]?.[type]
+    }
+    return null
 }
 
 class AIStudioAdapter {
