@@ -229,6 +229,10 @@ class BananaModal {
         if (this.modal) {
             this.modal.style.display = 'none'
         }
+        if (this.currentQrPopup) {
+            this.currentQrPopup.remove()
+            this.currentQrPopup = null
+        }
         // 移除键盘事件监听器
         document.removeEventListener('keydown', this.keyboardHandler)
     }
@@ -797,12 +801,105 @@ class BananaModal {
         socialContainer.appendChild(githubLink)
         socialContainer.appendChild(xhsLink)
 
+        // Sponsor Link
+        const sponsorContainer = document.createElement('div')
+        sponsorContainer.style.cssText = `display: flex; align-items: center; position: relative; ${mobile ? 'order: 3; margin-top: 4px;' : ''}`
+
+        const sponsorText = document.createElement('span')
+        sponsorText.innerHTML = '☕ 承诺永久免费'
+        sponsorText.style.cssText = `color: ${colors.textSecondary}; font-size: ${mobile ? '12px' : '13px'}; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-weight: 500; opacity: 0.8;`
+
+        // QR Code Popup (Fixed Position)
+        const qrPopup = document.createElement('div')
+        qrPopup.style.cssText = `
+            position: fixed;
+            padding: 12px;
+            background: ${colors.surface};
+            border: 1px solid ${colors.border};
+            border-radius: 16px;
+            box-shadow: 0 10px 40px ${colors.shadow};
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(20px);
+        `
+
+        const qrImg = document.createElement('img')
+        qrImg.src = 'https://cdn.jsdelivr.net/gh/glidea/banana-prompt-quicker@main/images/sponsor.png'
+        qrImg.alt = 'Payment QR Code'
+        qrImg.style.cssText = 'width: 140px; height: 140px; display: block; border-radius: 8px;'
+
+        const qrTip = document.createElement('span')
+        qrTip.textContent = '感谢支持 ❤️'
+        qrTip.style.cssText = `font-size: 12px; color: ${colors.textSecondary};`
+
+        qrPopup.appendChild(qrImg)
+        qrPopup.appendChild(qrTip)
+        sponsorContainer.appendChild(sponsorText)
+
+        // Hover events
+        let hideTimeout
+
+        sponsorContainer.onmouseenter = () => {
+            clearTimeout(hideTimeout)
+            document.body.appendChild(qrPopup)
+            this.currentQrPopup = qrPopup
+
+            // Calculate position
+            const rect = sponsorText.getBoundingClientRect()
+            const popupRect = qrPopup.getBoundingClientRect()
+
+            // Center horizontally relative to text
+            let left = rect.left + (rect.width / 2) - (popupRect.width / 2)
+
+            // Clamp to screen edges (16px padding)
+            const minLeft = 16
+            const maxLeft = window.innerWidth - popupRect.width - 16
+
+            if (left < minLeft) left = minLeft
+            if (left > maxLeft) left = maxLeft
+
+            // Position above text
+            let top = rect.top - popupRect.height - 16
+
+            qrPopup.style.left = `${left}px`
+            qrPopup.style.top = `${top}px`
+
+            // Trigger reflow before opacity transition
+            qrPopup.offsetHeight
+
+            qrPopup.style.opacity = '1'
+            sponsorText.style.color = colors.primary
+            sponsorText.style.opacity = '1'
+        }
+
+        sponsorContainer.onmouseleave = () => {
+            sponsorText.style.color = colors.textSecondary
+            sponsorText.style.opacity = '0.8'
+            qrPopup.style.opacity = '0'
+
+            hideTimeout = setTimeout(() => {
+                if (qrPopup.parentNode) {
+                    qrPopup.parentNode.removeChild(qrPopup)
+                }
+                if (this.currentQrPopup === qrPopup) {
+                    this.currentQrPopup = null
+                }
+            }, 300)
+        }
+
         if (mobile) {
             pagination.appendChild(controlsWrapper)
             pagination.appendChild(socialContainer)
+            pagination.appendChild(sponsorContainer)
         } else {
-            const spacer = document.createElement('div')
-            pagination.appendChild(spacer)
+            // Desktop: Left (Sponsor) - Center (Pagination) - Right (Social)
+            pagination.appendChild(sponsorContainer)
             pagination.appendChild(controlsWrapper)
             pagination.appendChild(socialContainer)
         }
