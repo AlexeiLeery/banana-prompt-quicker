@@ -216,7 +216,7 @@
 
             const dropdownTrigger = h('div', {
                 id: 'category-dropdown-trigger',
-                style: `padding: ${isMobile ? '10px 14px' : '8px 12px'}; border: 1px solid ${colors.border}; border-radius: 16px; background: ${colors.surface}; color: ${colors.text}; font-size: ${isMobile ? '14px' : '13px'}; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; width: 60px; justify-content: space-between; user-select: none;`,
+                style: `padding: ${isMobile ? '10px 14px' : '8px 12px'}; border: 1px solid ${colors.border}; border-radius: 16px; background: ${colors.surface}; color: ${colors.text}; font-size: ${isMobile ? '14px' : '13px'}; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; min-width: 70px; justify-content: space-between; user-select: none;`,
                 onclick: (e) => {
                     e.stopPropagation();
                     this.updateState({ isDropdownOpen: !this.state.isDropdownOpen });

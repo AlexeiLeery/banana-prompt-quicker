@@ -43,35 +43,44 @@ window.BananaUI.PromptForm = class PromptForm {
 
         // Create dialog
         const dialog = h('div', {
-            style: `background: ${colors.surface}; padding: ${mobile ? '28px' : '32px'}; border-radius: 20px; width: ${mobile ? '90%' : '500px'}; max-width: 90%; box-shadow: 0 20px 60px ${colors.shadow}; display: flex; flex-direction: column; gap: 20px; color: ${colors.text};`,
-            onclick: (e) => e.stopPropagation()
+            style: `background: ${colors.surface}; padding: ${mobile ? '24px' : '32px'}; border-radius: 20px; width: ${mobile ? '90%' : '480px'}; max-width: 90%; box-shadow: 0 20px 60px ${colors.shadow}; display: flex; flex-direction: column; gap: 16px; color: ${colors.text};`
         });
 
         // Title
         const title = h('h3', {
-            style: 'margin: 0 0 8px 0; font-size: 20px; font-weight: 600;'
+            style: 'margin: 0 0 4px 0; font-size: 20px; font-weight: 600;'
         }, existingPrompt ? '编辑自定义 Prompt' : '添加自定义 Prompt');
 
         // Title Input
         const titleInput = this.createInput('标题');
         if (existingPrompt) titleInput.value = existingPrompt.title;
 
+        // Mode Selection (Moved up)
+        const modeContainer = this.createModeSelection();
+
         // Image Upload
         const imageContainer = this.createImageUpload(existingPrompt);
 
+        // Category & Sub-Category Row
+        const categoryRow = h('div', {
+            style: 'display: flex; gap: 12px; align-items: flex-start;'
+        });
+
         // Category Dropdown
         const categoryContainer = this.createCategoryDropdown(addCategories);
+        categoryContainer.style.flex = '1';
 
         // Sub-Category Input
         const subCategoryInput = this.createInput('子分类 (可选)');
+        subCategoryInput.style.flex = '1';
         if (existingPrompt?.sub_category) subCategoryInput.value = existingPrompt.sub_category;
+
+        categoryRow.appendChild(categoryContainer);
+        categoryRow.appendChild(subCategoryInput);
 
         // Prompt Content
         const promptInput = this.createInput('Prompt 内容', true);
         if (existingPrompt) promptInput.value = existingPrompt.prompt;
-
-        // Mode Selection
-        const modeContainer = this.createModeSelection();
 
         // Buttons
         const btnContainer = this.createButtons(
@@ -83,11 +92,10 @@ window.BananaUI.PromptForm = class PromptForm {
 
         dialog.appendChild(title);
         dialog.appendChild(titleInput);
+        dialog.appendChild(modeContainer); // Mode is now here
         dialog.appendChild(imageContainer);
-        dialog.appendChild(categoryContainer);
-        dialog.appendChild(subCategoryInput);
+        dialog.appendChild(categoryRow);   // Grouped row
         dialog.appendChild(promptInput);
-        dialog.appendChild(modeContainer);
         dialog.appendChild(btnContainer);
 
         this.overlay.appendChild(dialog);
@@ -116,10 +124,22 @@ window.BananaUI.PromptForm = class PromptForm {
 
     createImageUpload(existingPrompt) {
         const { h } = window.BananaDOM;
-        const { colors, mobile } = this;
+        const { colors } = this;
 
         const imageContainer = h('div', {
-            style: 'display: flex; align-items: center; gap: 12px; width: 100%;'
+            style: `width: 100%; height: 140px; border: 1px dashed ${colors.border}; border-radius: 12px; background: ${colors.inputBg}; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; transition: all 0.2s;`,
+            onmouseenter: (e) => {
+                if (!this.state.selectedFile && !this.state.previewUrl) {
+                    e.target.style.borderColor = colors.primary;
+                    e.target.style.background = colors.surfaceHover;
+                }
+            },
+            onmouseleave: (e) => {
+                if (!this.state.selectedFile && !this.state.previewUrl) {
+                    e.target.style.borderColor = colors.border;
+                    e.target.style.background = colors.inputBg;
+                }
+            }
         });
 
         const fileInput = h('input', {
@@ -128,44 +148,59 @@ window.BananaUI.PromptForm = class PromptForm {
             style: 'display: none;'
         });
 
-        const placeholderIcon = h('span', {
-            innerHTML: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${colors.textSecondary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`
+        // Placeholder Content
+        const placeholderIcon = h('div', {
+            innerHTML: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${colors.textSecondary}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
+            style: 'margin-bottom: 8px;'
         });
 
+        const placeholderText = h('span', {
+            style: `font-size: 13px; color: ${colors.textSecondary}; font-weight: 500;`
+        }, '点击上传封面图');
+
+        const placeholderContainer = h('div', {
+            style: 'display: flex; flex-direction: column; align-items: center; pointer-events: none;'
+        }, [placeholderIcon, placeholderText]);
+
+        // Preview Image
         const previewImg = h('img', {
-            style: 'width: 100%; height: 100%; object-fit: cover; display: none;'
+            style: 'width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0;'
         });
 
-        const previewBtn = h('div', {
-            style: `width: 60px; height: 60px; border-radius: 12px; border: 1px dashed ${colors.border}; background: ${colors.inputBg}; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; flex-shrink: 0; transition: all 0.2s;`,
-            onclick: () => fileInput.click()
-        }, [placeholderIcon, previewImg]);
-
-        const uploadTip = h('span', {
-            style: `font-size: 13px; color: ${colors.textSecondary};`
-        }, '上传封面 (可选)');
-
-        const clearImgBtn = h('button', {
-            innerHTML: '×',
-            style: `margin-left: auto; width: 24px; height: 24px; border-radius: 50%; background: ${colors.border}; color: ${colors.text}; border: none; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 16px; padding-bottom: 2px;`,
-            onclick: () => {
+        // Clear Button
+        const clearBtn = h('button', {
+            innerHTML: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+            style: `position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.5); color: white; border: none; cursor: pointer; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); transition: all 0.2s; z-index: 10;`,
+            onclick: (e) => {
+                e.stopPropagation();
                 fileInput.value = '';
                 this.state.selectedFile = null;
+                this.state.previewUrl = '';
                 previewImg.src = '';
                 previewImg.style.display = 'none';
-                placeholderIcon.style.display = 'block';
-                previewBtn.style.borderStyle = 'dashed';
-                clearImgBtn.style.display = 'none';
-            }
+                placeholderContainer.style.display = 'flex';
+                clearBtn.style.display = 'none';
+                imageContainer.style.borderStyle = 'dashed';
+            },
+            onmouseenter: (e) => e.target.style.background = 'rgba(0,0,0,0.7)',
+            onmouseleave: (e) => e.target.style.background = 'rgba(0,0,0,0.5)'
         });
+
+        // Click handler for container
+        imageContainer.onclick = (e) => {
+            if (e.target !== clearBtn && !clearBtn.contains(e.target)) {
+                fileInput.click();
+            }
+        };
 
         // Load existing preview
         if (existingPrompt?.preview && !existingPrompt.preview.includes('gstatic.com')) {
             previewImg.src = existingPrompt.preview;
             previewImg.style.display = 'block';
-            placeholderIcon.style.display = 'none';
-            previewBtn.style.borderStyle = 'solid';
-            clearImgBtn.style.display = 'flex';
+            placeholderContainer.style.display = 'none';
+            imageContainer.style.borderStyle = 'solid';
+            clearBtn.style.display = 'flex';
+            this.state.previewUrl = existingPrompt.preview;
         }
 
         fileInput.onchange = (e) => {
@@ -177,18 +212,18 @@ window.BananaUI.PromptForm = class PromptForm {
                 reader.onload = (evt) => {
                     previewImg.src = evt.target.result;
                     previewImg.style.display = 'block';
-                    placeholderIcon.style.display = 'none';
-                    previewBtn.style.borderStyle = 'solid';
-                    clearImgBtn.style.display = 'flex';
+                    placeholderContainer.style.display = 'none';
+                    imageContainer.style.borderStyle = 'solid';
+                    clearBtn.style.display = 'flex';
                 };
                 reader.readAsDataURL(file);
             }
         };
 
         imageContainer.appendChild(fileInput);
-        imageContainer.appendChild(previewBtn);
-        imageContainer.appendChild(uploadTip);
-        imageContainer.appendChild(clearImgBtn);
+        imageContainer.appendChild(placeholderContainer);
+        imageContainer.appendChild(previewImg);
+        imageContainer.appendChild(clearBtn);
 
         return imageContainer;
     }
@@ -279,29 +314,38 @@ window.BananaUI.PromptForm = class PromptForm {
 
     createModeSelection() {
         const { h } = window.BananaDOM;
+        const { colors } = this;
 
         const modeContainer = h('div', {
-            style: 'display: flex; gap: 16px;'
+            style: `display: flex; background: ${colors.inputBg}; padding: 4px; border-radius: 10px; border: 1px solid ${colors.inputBorder};`
         });
 
-        const createRadio = (value, label) => {
-            const radio = h('input', {
-                type: 'radio',
-                name: 'prompt-mode',
-                value: value,
-                onchange: () => this.state.selectedMode = value
+        const createOption = (value, label, iconSvg) => {
+            const isSelected = this.state.selectedMode === value;
+            const option = h('div', {
+                style: `flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s; font-weight: ${isSelected ? '600' : '400'}; color: ${isSelected ? colors.text : colors.textSecondary}; background: ${isSelected ? colors.surface : 'transparent'}; box-shadow: ${isSelected ? `0 2px 8px ${colors.shadow}` : 'none'};`,
+                onclick: () => {
+                    this.state.selectedMode = value;
+                    const newContainer = this.createModeSelection();
+                    modeContainer.parentNode.replaceChild(newContainer, modeContainer);
+                }
             });
-            radio.checked = value === this.state.selectedMode;
 
-            const labelEl = h('label', {
-                style: 'display: flex; align-items: center; gap: 6px; cursor: pointer;'
-            }, [radio, document.createTextNode(label)]);
+            const icon = h('span', {
+                innerHTML: iconSvg,
+                style: 'display: flex; align-items: center;'
+            });
 
-            return labelEl;
+            option.appendChild(icon);
+            option.appendChild(document.createTextNode(label));
+            return option;
         };
 
-        modeContainer.appendChild(createRadio('generate', '文生图'));
-        modeContainer.appendChild(createRadio('edit', '编辑'));
+        const generateIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+        const editIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+
+        modeContainer.appendChild(createOption('generate', '文生图', generateIcon));
+        modeContainer.appendChild(createOption('edit', '编辑', editIcon));
 
         return modeContainer;
     }
